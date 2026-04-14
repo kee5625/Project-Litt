@@ -1,0 +1,3 @@
+[submodule "actian-db"]
+	path = actian-db
+	url = https://github.com/hackmamba-io/actian-vectorAI-db-beta.git
