@@ -1,3 +1,12 @@
+import asyncio 
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+async def search_all(search_query: str) -> dict:
+    return
+
 if __name__ == "__main__":
     search_query = sys.argv[1] if len(sys.argv) > 1 else "case law 1"
 
