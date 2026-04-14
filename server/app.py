@@ -8,6 +8,7 @@ from integrations.azure.openai_client import close_openai_client, get_openai_cli
 from api import router as api_router
 
 FRONTEND_ORIGIN = "http://localhost:3000"
+PORT = 8000
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
 # Root logger at INFO with a compact format — no headers, no request bodies.
@@ -22,25 +23,23 @@ logging.getLogger("uvicorn").setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
 
+app = FastAPI(title="Project Litt")
 
-def create_app() -> FastAPI:
-    app = FastAPI(title="ivy")
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[FRONTEND_ORIGIN],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-    app.include_router(api_router)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[FRONTEND_ORIGIN]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    @app.on_event("startup")
-
-    @app.on_event("shutdown")
-
-
-app = create_app()
-
+@app.get("/api/ingest")
+async def index(files: List[File]):
+    return
+    
+@app.get("/api/search")
+async def api_search(query: str):
+    return 
 
 if __name__ == "__main__":
     import uvicorn
