@@ -1,0 +1,32 @@
+{
+  "counters": {
+    "courtlistener_accepted": 18,
+    "courtlistener_fetched": 20,
+    "courtlistener_quarantined": 0,
+    "courtlistener_rejected_reasons": {
+      "short_text": 2
+    },
+    "pile_of_law_accepted": 0,
+    "pile_of_law_fetched": 1,
+    "pile_of_law_quarantined": 0,
+    "pile_of_law_rejected_reasons": {
+      "short_text": 1
+    }
+  },
+  "dry_run": true,
+  "generated_at": "2026-04-16T03:01:11.148841+00:00",
+  "merged_accepted": 18,
+  "merged_quarantined": 0,
+  "output_bytes": 3159659,
+  "output_mb": 3.013,
+  "run_id": "20260416T030110Z",
+  "runtime_minutes": 0.018,
+  "runtime_seconds": 1.061,
+  "source_selection": [
+    "courtlistener",
+    "pile-of-law"
+  ],
+  "warnings": [],
+  "within_runtime_budget_60_min": true,
+  "within_storage_budget_15_gb": true
+}
