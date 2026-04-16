@@ -1,2 +1,12 @@
 __pycache__/
 .env    
+# Python bytecode/cache
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Common Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
