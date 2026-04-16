@@ -138,17 +138,23 @@ def _build_query_vector(search_query: str, dim: int) -> list[float]:
 def _extract_dim(client: VectorAIClient) -> int:
     info = client.collections.get_info(COLLECTION)
     config = getattr(getattr(info, "config", None), "params", None)
-    if config is None:
-        raise ValueError("Collection metadata missing vector config")
-    vectors_cfg = getattr(config, "vectors", None)
-    if vectors_cfg is None:
-        raise ValueError("Collection does not expose vectors config")
+    vectors_cfg = getattr(config, "vectors", None) if config is not None else None
     if hasattr(vectors_cfg, "size"):
         return int(vectors_cfg.size)
-    if isinstance(vectors_cfg, dict):
+    if isinstance(vectors_cfg, dict) and vectors_cfg:
         first = next(iter(vectors_cfg.values()))
         return int(first.size)
-    raise ValueError("Unable to determine vector dimension from collection config")
+
+    env_dim = os.getenv("ACTIAN_VECTOR_DIM")
+    if env_dim:
+        try:
+            return int(env_dim)
+        except ValueError as exc:
+            raise ValueError("ACTIAN_VECTOR_DIM must be an integer") from exc
+
+    # Fallback for servers that do not return collection config in get_info.
+    # Matches scripts/actian_loader.py EMBED_DIM default.
+    return 384
 
 
 def _point_to_result(point: ScoredPoint, source: str) -> dict[str, Any]:
