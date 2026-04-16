@@ -8,16 +8,21 @@ import random
 from actian_vectorai import (
     Distance,
     PointStruct,
+    SparseVector,
+    SparseVectorParams,
     SearchParams,
     VectorAIClient,
     VectorParams,
-)
+)   
+from actian_vectorai.exceptions import VectorAIError
 
 load_dotenv()
 
 SERVER = "localhost:50051"
 COLLECTION = "search_demo"
 DIM = 64
+VOCAB_SIZE = 1000
+
 fmt = "\n=== {:50} ==="
 
 async def vector_search(search_query: str) -> dict:
@@ -96,6 +101,13 @@ async def vector_search(search_query: str) -> dict:
         # Cleanup
         client.collections.delete(COLLECTION)
         print("\n Cleaned up")
+        
+# HELPERS
+def sparse_from_text(text: str, vocab_size: int = VOCAB_SIZE) -> SparseVector:
+    
+
+async def keyword_search(search_query: str) -> dict:
+    
 
 async def search_all(search_query: str) -> dict:
     return
