@@ -34,9 +34,11 @@ type SearchResponse = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-function scorePercent(score: number): number {
-  if (!Number.isFinite(score)) return 0;
-  const normalized = Math.max(0, Math.min(1, score));
+function scorePercent(score: number, maxScore: number): number {
+  if (!Number.isFinite(score) || !Number.isFinite(maxScore) || maxScore <= 0) {
+    return 0;
+  }
+  const normalized = Math.max(0, Math.min(1, score / maxScore));
   return Math.round(normalized * 100);
 }
 
@@ -55,6 +57,11 @@ export default function Home() {
     () => [...(response?.results ?? [])],
     [response?.results],
   );
+  const maxScore = useMemo(() => {
+    return sortedResults.reduce((best, item) => {
+      return Number.isFinite(item.score) ? Math.max(best, item.score) : best;
+    }, 0);
+  }, [sortedResults]);
 
   async function onSearch(event: FormEvent) {
     event.preventDefault();
@@ -186,7 +193,7 @@ export default function Home() {
           ) : null}
 
           {sortedResults.map((item) => {
-            const pct = scorePercent(item.score);
+            const pct = scorePercent(item.score, maxScore);
             const title = item.case_name || item.full_cite_str || "Untitled authority";
             const subtitle = [item.citation, item.court, item.year]
               .filter(Boolean)

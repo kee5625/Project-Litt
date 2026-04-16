@@ -20,6 +20,8 @@ DEFAULT_LIMIT = 10
 MAX_LIMIT = 50
 KEYWORD_CANDIDATE_LIMIT = 200
 KEYWORD_TERMS_LIMIT = 8
+MAX_CASE_NAME_LEN = 180
+MAX_SNIPPET_LEN = 700
 
 
 def _clamp_limit(limit: int | None) -> int:
@@ -108,13 +110,13 @@ def _build_keyword_filter(
             builder.must(Field("is_good_law").eq(bool(is_good_law)))
 
     for term in terms:
-        builder.should(Field("holding_text").text(term))
+        builder.should(Field("chunk_text").text(term))
         builder.should(Field("case_name").text(term))
         builder.should(Field("citation").text(term))
 
     if terms:
         builder.min_should(
-            [Field("holding_text").text(t) for t in terms],
+            [Field("chunk_text").text(t) for t in terms],
             min_count=1,
         )
 
@@ -159,11 +161,16 @@ def _extract_dim(client: VectorAIClient) -> int:
 
 def _point_to_result(point: ScoredPoint, source: str) -> dict[str, Any]:
     payload = point.payload or {}
+    case_name = _normalize_case_name(payload)
+    snippet = _extract_snippet(payload)
+    source_url = _canonical_source_url(payload)
+
     return {
         "id": str(point.id),
         "score": float(point.score),
         "source": source,
-        "case_name": payload.get("case_name"),
+        "source_id": payload.get("source_id"),
+        "case_name": case_name,
         "citation": payload.get("citation"),
         "court": payload.get("court"),
         "jurisdiction": payload.get("jurisdiction"),
@@ -171,18 +178,92 @@ def _point_to_result(point: ScoredPoint, source: str) -> dict[str, Any]:
         "year": payload.get("year"),
         "outcome": payload.get("outcome"),
         "is_good_law": payload.get("is_good_law"),
-        "source_url": payload.get("source_url"),
-        "holding_text": payload.get("holding_text"),
+        "source_url": source_url,
+        "holding_text": snippet,
         "full_cite_str": payload.get("full_cite_str"),
     }
+
+
+def _normalize_case_name(payload: dict[str, Any]) -> str:
+    raw_case_name = str(payload.get("case_name") or "").strip()
+    citation = str(payload.get("citation") or "").strip()
+
+    if raw_case_name and len(raw_case_name) <= MAX_CASE_NAME_LEN:
+        return raw_case_name
+
+    if citation:
+        return citation
+
+    source_id = str(payload.get("source_id") or "").strip()
+    if source_id:
+        return f"Authority {source_id}"
+
+    return "Untitled authority"
+
+
+def _extract_snippet(payload: dict[str, Any]) -> str | None:
+    text = (
+        payload.get("holding_text")
+        or payload.get("chunk_text")
+        or payload.get("plain_text")
+    )
+    if not text:
+        return None
+
+    clean = " ".join(str(text).split())
+    if len(clean) <= MAX_SNIPPET_LEN:
+        return clean
+    return clean[: MAX_SNIPPET_LEN - 3] + "..."
+
+
+def _canonical_source_url(payload: dict[str, Any]) -> str | None:
+    raw = str(payload.get("source_url") or "").strip()
+    if not raw:
+        return None
+
+    if raw.startswith("/opinion/"):
+        return "https://www.courtlistener.com" + raw
+
+    if raw.startswith("https://www.courtlistener.com/opinion/"):
+        return raw
+
+    if raw.startswith("http://") or raw.startswith("https://"):
+        match = re.search(r"/api/rest/v\d+/opinions/(\d+)/?", raw)
+        if match:
+            opinion_id = match.group(1)
+            return f"https://www.courtlistener.com/opinion/{opinion_id}/"
+        return raw
+
+    return raw
 
 
 def _keyword_hit_count(payload: dict[str, Any], terms: list[str]) -> int:
     haystack = " ".join(
         str(payload.get(field, "") or "")
-        for field in ("holding_text", "case_name", "citation", "court")
+        for field in (
+            "holding_text",
+            "chunk_text",
+            "plain_text",
+            "case_name",
+            "citation",
+            "court",
+        )
     ).lower()
     return sum(1 for t in terms if t in haystack)
+
+
+def _dedupe_key(item: dict[str, Any]) -> str:
+    citation = str(item.get("citation") or "").strip().lower()
+    source_id = str(item.get("source_id") or "").strip().lower()
+    source_url = str(item.get("source_url") or "").strip().lower()
+
+    if source_id:
+        return f"sid:{source_id}"
+    if citation and source_url:
+        return f"cite-url:{citation}|{source_url}"
+    if citation:
+        return f"cite:{citation}"
+    return f"id:{item['id']}"
 
 
 async def vector_search(
@@ -306,6 +387,7 @@ async def search_all(
     keyword_ids = {str(item["id"]) for item in keyword_data["results"]}
 
     final_results: list[dict[str, Any]] = []
+    seen: set[str] = set()
     for point in fused:
         source_tags: list[str] = []
         pid = str(point.id)
@@ -315,7 +397,13 @@ async def search_all(
             source_tags.append("keyword")
         item = _point_to_result(point, "hybrid")
         item["match_reasons"] = source_tags
+        dedupe_key = _dedupe_key(item)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
         final_results.append(item)
+        if len(final_results) >= bounded_limit:
+            break
 
     latency_ms = int((time.perf_counter() - started) * 1000)
     return {
