@@ -1,8 +1,8 @@
 """
 Opinion text cleaning, semantic chunking, and size guard.
 
-The BGE-large embed model is loaded ONCE via load_splitter() and reused for all
-opinions. SemanticSplitterNodeParser uses it to detect sentence-boundary breakpoints —
+The BGE-M3 embed model (via Ollama) is loaded ONCE via load_splitter() and reused for
+all opinions. SemanticSplitterNodeParser uses it to detect sentence-boundary breakpoints —
 this is separate from the Stage 3 embedding step.
 """
 from __future__ import annotations
@@ -35,15 +35,20 @@ def token_count(text: str) -> int:
     return len(_enc.encode(text))
 
 
-def load_splitter():
-    """Load BGE-large embed model and return a SemanticSplitterNodeParser.
+def load_splitter(semantic: bool = True):
+    """Return a text splitter for chunking opinions.
 
-    Called once at startup — expensive (~10s on CPU, downloads model on first run).
+    semantic=True  — SemanticSplitterNodeParser (BGE-M3 via Ollama, higher quality, slow)
+    semantic=False — SentenceSplitter (pure Python, ~300 tok chunks, fast)
     """
-    from llama_index.core.node_parser import SemanticSplitterNodeParser
-    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+    if not semantic:
+        from llama_index.core.node_parser import SentenceSplitter
+        return SentenceSplitter(chunk_size=300, chunk_overlap=40)
 
-    embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-large-en-v1.5")
+    from llama_index.core.node_parser import SemanticSplitterNodeParser
+    from llama_index.embeddings.ollama import OllamaEmbedding
+
+    embed_model = OllamaEmbedding(model_name="bge-m3")
     return SemanticSplitterNodeParser(
         buffer_size=1,
         breakpoint_percentile_threshold=90,
