@@ -1,0 +1,32 @@
+# Environment
+.env
+.venv/
+ingestion_venv/
+
+# Runtime state
+state.json
+state.json.tmp
+state.db
+
+# Raw data (large, not committed)
+raw/
+
+# Logs
+stage1.log
+stage2.log
+stage3.log
+stage4.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.pytest_cache/
+
+# Node
+client/node_modules/
+client/.next/
+
+# macOS
+.DS_Store
