@@ -1,0 +1,6 @@
+requests
+tenacity
+tqdm
+datasets
+huggingface-hub
+python-dotenv
